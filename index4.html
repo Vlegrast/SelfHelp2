@@ -1,0 +1,1741 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>SelfTalk — index4</title>
+
+<!-- Default pixel font; JS will support switching to other Google Fonts -->
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --bg: #1e1e1e;
+    --panel: #2b2b2b;
+    --muted: #999;
+    --accent: #4e9a06;
+    --text: #eee;
+  }
+
+  html,body{
+    height:100%;
+    margin:0;
+    background:var(--bg);
+    color:var(--text);
+    font-family:'Press Start 2P', cursive;
+  }
+
+  /* Container layout */
+  .app-wrap{
+    max-width:1100px;
+    margin:20px auto;
+    padding:16px;
+    display:grid;
+    grid-template-columns: 280px 1fr 320px; /* left widgets / chat / right widgets */
+    gap:12px;
+    align-items:start;
+  }
+
+  header{
+    grid-column:1 / -1;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    margin-bottom:6px;
+  }
+  header h1{
+    margin:0;
+    font-size:16px;
+  }
+
+  /* --- Left column (pomodoro + small controls) --- */
+  .left-col{
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+  }
+  .widget{
+    background:var(--panel);
+    border:2px solid #444;
+    padding:10px;
+    border-radius:10px;
+    box-shadow:0 6px 18px rgba(0,0,0,0.35);
+  }
+  .widget h3{ font-size:11px; margin:0 0 8px 0; color:var(--muted); }
+
+  /* Pomodoro widget */
+  #pomodoroWidget { display:flex; flex-direction:column; align-items:center; gap:8px; }
+  #pomTimerDisplay{ font-size:28px; background:#111; padding:10px 18px; border-radius:8px; color:#fff; }
+  .pom-controls{ display:flex; gap:8px; flex-wrap:wrap; justify-content:center; }
+
+  /* --- Main chat column --- */
+  .chat-col{
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+  }
+  .chat-top-controls{
+    display:flex;
+    gap:8px;
+    align-items:center;
+  }
+  .chat-container{
+    background:var(--panel);
+    border:2px solid #444;
+    padding:16px;
+    height:520px;
+    overflow:auto;
+    border-radius:8px;
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+    scroll-behavior:smooth;
+  }
+
+  /* message */
+  .chat-message-container{
+    max-width:70%;
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+  }
+  .chat-message-container.left{ align-self:flex-start; }
+  .chat-message-container.right{ align-self:flex-end; }
+  .msg-header{ display:flex; align-items:center; gap:6px; font-size:10px; color:var(--muted); }
+  .avatar-header{ width:28px; height:28px; border-radius:50%; background:#ddd; display:flex; align-items:center; justify-content:center; overflow:hidden; }
+  .avatar-header img{ width:100%; height:100%; object-fit:cover; display:block; }
+  .name-header{ font-weight:bold; font-size:11px; }
+  .icon-header{ font-size:11px; margin-right:4px; opacity:0.95; }
+
+  .bubble{
+    padding:10px;
+    border-radius:12px;
+    word-wrap:break-word;
+    font-size:12px;
+    position:relative;
+    white-space:pre-wrap;
+    display:inline-block;
+    max-width:540px;
+  }
+  .reaction-row{ margin-top:6px; display:flex; gap:6px; font-size:12px; }
+
+  /* Character slots */
+  #characterCircles{ display:flex; gap:8px; flex-wrap:wrap; margin-top:6px; }
+  .char-circle{ width:48px; height:48px; border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer; border:2px solid transparent; overflow: hidden; }
+  .char-circle.selected{ border-color:#fff; box-shadow:0 4px 10px rgba(0,0,0,0.45); }
+
+  /* bottom controls */
+  .composer{ display:flex; gap:8px; align-items:flex-end; margin-top:6px; }
+  textarea#messageInput{ flex:1; min-height:72px; resize:vertical; padding:8px; border-radius:6px; border:1px solid #333; background:#151515; color:#ddd; font-family:inherit; font-size:12px; }
+  .controls-column{ display:flex; flex-direction:column; gap:8px; min-width:220px; }
+
+  /* --- Right column (spinning wheel + other widgets) --- */
+  .right-col{ display:flex; flex-direction:column; gap:12px; align-items:stretch; }
+  #wheelCanvas{ width:100%; height:320px; border-radius:8px; background:#111; display:block; }
+
+  /* Reminders (bottom right) & ToDo (bottom left) — floating small panels */
+  .floating{
+    position:fixed;
+    background:var(--panel);
+    border:2px solid #444;
+    padding:8px;
+    border-radius:8px;
+    z-index:2000;
+    width:260px;
+    box-shadow:0 8px 26px rgba(0,0,0,0.5);
+  }
+  #todoFloating{ left:18px; bottom:18px; }
+  #remindersFloating{ right:18px; bottom:18px; }
+
+  /* Settings panel (right slide-in) */
+  #settingsToggle{ position:fixed; top:20px; right:20px; z-index:3000; background:#333; width:44px; height:44px; border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer; border:2px solid #555; }
+  #settingsPanel{
+    position:fixed; top:0; right:-420px; width:400px; height:100vh; background:#1b1b1b; border-left:2px solid #444; padding:12px; z-index:3000; transition:right .28s ease;
+    overflow:auto;
+  }
+  #settingsPanel.open{ right:0; }
+  #settingsPanel .closeBtn{ float:right; background:#333; padding:6px 10px; border-radius:8px; cursor:pointer; border:1px solid #444; }
+
+  .setting-row{ margin:10px 0; font-size:12px; display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  label.small{ font-size:11px; color:var(--muted); display:block; margin-bottom:6px; }
+
+  /* bubble menu */
+  #bubbleMenu{ display:none; position:absolute; background:#333; border:1px solid #555; border-radius:6px; font-size:12px; padding:8px; z-index:4000; }
+  #bubbleMenu .menuItem{ padding:6px 8px; cursor:pointer; color:#fff; }
+  #bubbleMenu .menuItem:hover{ background:#444; }
+
+  /* small helpers */
+  .muted{ color:var(--muted); font-size:11px; }
+  .tiny{ font-size:10px; color:var(--muted); }
+
+  /* responsive */
+  @media (max-width:1100px){
+    .app-wrap{ grid-template-columns:1fr; }
+    #wheelCanvas{ height:260px; }
+    #settingsPanel{ width:100%; right:-100%; }
+    #settingsPanel.open{ right:0; }
+    #todoFloating, #remindersFloating{ display:none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- SETTINGS TOGGLE -->
+<div id="settingsToggle" title="Open Settings">⚙️</div>
+
+<div class="app-wrap">
+
+  <!-- Header -->
+  <header>
+    <h1>SelfTalk — </h1>
+    <div style="display:flex; gap:8px; align-items:center;">
+      <div class="tiny muted">Font:</div>
+      <select id="fontSelectorHeader" style="font-family:inherit; font-size:11px;"></select>
+      <button id="resetAllBtn" style="font-size:11px;">Reset All</button>
+    </div>
+  </header>
+
+  <!-- LEFT COLUMN -->
+  <div class="left-col">
+    <!-- Pomodoro widget -->
+    <div class="widget" id="pomodoroWidget">
+      <h3>Pomodoro</h3>
+      <div id="pomTimerDisplay">25:00</div>
+      <div class="pom-controls">
+        <input type="number" id="pomFocusInput" min="1" value="25" style="width:60px;"> Focus (min)
+        <input type="number" id="pomBreakInput" min="1" value="5" style="width:60px;"> Break (min)
+      </div>
+      <div class="pom-controls">
+        <button id="pomStartBtn">Start</button>
+        <button id="pomPauseBtn">Pause</button>
+        <button id="pomResetBtn">Reset</button>
+        <button id="pomSkipBtn">Skip</button>
+      </div>
+      <div class="tiny muted">Notification sound & browser notification supported</div>
+    </div>
+
+    <!-- Small quick controls (character + avatar) -->
+    <div class="widget">
+      <h3>Characters</h3>
+      <div style="display:flex; gap:8px; align-items:center;">
+        <input type="text" id="nameInput" placeholder="Name" style="flex:1; padding:6px; font-size:11px;">
+        <input type="color" id="colorInput" title="Bubble color">
+      </div>
+      <div id="characterCircles" style="margin-top:10px;"></div>
+      <div style="display:flex; gap:8px; margin-top:8px;">
+        <button id="addCharacterBtn">Add</button>
+        <button id="deleteCharacterBtn">Delete</button>
+        <button id="saveCharacterBtn">Save</button>
+      </div>
+
+      <div style="margin-top:8px;">
+        <label class="small">Avatar Picker</label>
+        <div id="avatarPicker" style="display:flex; gap:6px; flex-wrap:wrap;">
+          <span class="emojiOption" style="cursor:pointer;">🙂</span>
+          <span class="emojiOption" style="cursor:pointer;">😊</span>
+          <span class="emojiOption" style="cursor:pointer;">😎</span>
+          <span class="emojiOption" style="cursor:pointer;">🤖</span>
+          <span class="emojiOption" style="cursor:pointer;">😺</span>
+          <button id="uploadAvatarBtn">📷</button>
+          <input type="file" id="avatarFileInput" accept="image/*" style="display:none;">
+        </div>
+      </div>
+
+      <div style="margin-top:8px;">
+        <label class="small">Icon (emoji)</label>
+        <input id="iconInput" type="text" maxlength="2" placeholder="★ or emoji" style="width:100%; padding:6px; font-size:11px;">
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN CHAT COLUMN -->
+  <div class="chat-col">
+    <div class="chat-top-controls">
+      <div style="display:flex; gap:8px; align-items:center;">
+        <button id="sideToggle">➡️</button>
+        <div class="tiny muted">Side toggle (Shift+← / Shift+→ supported)</div>
+      </div>
+
+      <div style="margin-left:auto; display:flex; gap:8px; align-items:center;">
+        <button id="clearBtn">Clear Chat</button>
+        <button id="openSwitchModalBtn">Switch Message</button>
+      </div>
+    </div>
+
+    <div class="chat-container" id="chatContainer"></div>
+
+    <div class="composer">
+      <textarea id="messageInput" placeholder="Type your message..."></textarea>
+      <div class="controls-column">
+        <div style="display:flex; gap:8px;">
+          <button id="sendBtn">Send</button>
+          <button id="replyBtn">Reply</button>
+          <button id="editBtn">Edit</button>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <input type="checkbox" id="autoSelectCheckbox" checked><label for="autoSelectCheckbox" class="tiny muted">Auto-select last char</label>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bubble menu (context menu) -->
+    <div id="bubbleMenu">
+      <div class="menuItem" data-action="copy">📋 Copy</div>
+      <div class="menuItem" data-action="reply">💬 Reply</div>
+      <div class="menuItem" data-action="edit">✏️ Edit Message</div>
+      <div class="menuItem" data-action="switch">👤 Switch Character</div>
+      <div class="menuItem" data-action="react">😊 React</div>
+      <div class="menuItem" data-action="delete">🗑️ Delete Message</div>
+    </div>
+
+    <!-- Switch Character Modal (simple) -->
+    <div id="switchCharacterModal" style="display:none; position:fixed; left:0; top:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:5000; align-items:center; justify-content:center;">
+      <div style="background:#111; padding:18px; border-radius:10px; max-width:600px; width:90%; color:white;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <h3 style="margin:0; font-size:14px;">Switch message to character</h3>
+          <button onclick="document.getElementById('switchCharacterModal').style.display='none'">Close</button>
+        </div>
+        <div id="switchCharacterList" style="display:flex; gap:8px; flex-wrap:wrap; margin-top:12px;"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- RIGHT COLUMN -->
+  <div class="right-col">
+    <!-- Spinning wheel widget -->
+    <div class="widget" id="wheelWidget">
+      <h3>Spinning Wheel</h3>
+      <canvas id="wheelCanvas" width="400" height="320"></canvas>
+      <div style="display:flex; gap:8px; margin-top:8px; flex-wrap:wrap;">
+        <input id="newWheelItem" placeholder="Add item" style="flex:1; padding:6px; font-size:12px;">
+        <button id="addWheelItemBtn">Add</button>
+        <button id="spinWheelBtn">Spin</button>
+      </div>
+      <div id="wheelList" style="margin-top:8px; font-size:12px; color:var(--muted);"></div>
+    </div>
+
+    <!-- Extra widget: quick settings (appearance) -->
+    <div class="widget">
+      <h3>Appearance</h3>
+      <div class="setting-row">
+        <label class="small">Background color</label>
+        <input type="color" id="bgColorInput" value="#1e1e1e">
+      </div>
+      <div class="setting-row">
+        <label class="small">Bubble style</label>
+        <select id="bubbleStyleSelector">
+          <option value="rounded">Rounded</option>
+          <option value="square">Square</option>
+          <option value="chatTail">Speech tail</option>
+        </select>
+      </div>
+      <div class="setting-row">
+        <label class="small">Show reactions</label>
+        <input type="checkbox" id="showReactions">
+      </div>
+    </div>
+  </div>
+
+</div> <!-- end app-wrap -->
+
+<!-- Floating To-Do -->
+<div id="todoFloating" class="floating">
+  <div style="display:flex; justify-content:space-between; align-items:center;">
+    <h4 style="margin:0; font-size:13px;">To-Do</h4>
+    <button id="toggleTodo" title="Hide To-Do">✖</button>
+  </div>
+  <div id="todoList" style="margin-top:8px;"></div>
+  <div style="display:flex; gap:6px; margin-top:8px;">
+    <input id="newTodoInput" placeholder="New task" style="flex:1; padding:6px;">
+    <button id="addTodoBtn">Add</button>
+  </div>
+</div>
+
+<!-- Floating Reminders -->
+<div id="remindersFloating" class="floating">
+  <div style="display:flex; justify-content:space-between; align-items:center;">
+    <h4 style="margin:0; font-size:13px;">Reminders</h4>
+    <button id="toggleReminders" title="Hide Reminders">✖</button>
+  </div>
+  <div id="reminderList" style="margin-top:8px;"></div>
+  <div style="margin-top:8px;">
+    <input id="reminderText" placeholder="Reminder (e.g. Drink water)" style="width:100%; padding:6px;">
+    <input id="reminderTime" type="time" style="width:100%; padding:6px; margin-top:6px;">
+    <div style="display:flex; gap:6px; margin-top:6px;">
+      <label style="font-size:12px;"><input type="checkbox" id="reminderRepeat"> Repeat daily</label>
+      <button id="addReminderBtn">Add</button>
+    </div>
+  </div>
+</div>
+
+<!-- Settings panel (slide-in) -->
+<div id="settingsPanel" aria-hidden="true" role="dialog">
+  <div style="display:flex; align-items:center; justify-content:space-between;">
+    <h2 style="margin:0; font-size:16px;">Settings</h2>
+    <button class="closeBtn" id="settingsCloseBtn">X</button>
+  </div>
+
+  <div style="margin-top:12px;">
+    <label class="small">Font (Google Fonts)</label>
+    <select id="fontSelector" style="width:100%; padding:8px;"></select>
+  </div>
+
+  <div style="margin-top:12px;">
+    <label class="small">Bubble style</label>
+    <select id="bubbleStyleSelectorPanel" style="width:100%; padding:8px;">
+      <option value="rounded">Rounded</option>
+      <option value="square">Square</option>
+      <option value="chatTail">Speech Tail</option>
+    </select>
+  </div>
+
+  <div style="margin-top:12px;">
+    <label class="small">Show Reactions</label>
+    <input type="checkbox" id="showReactionsPanel">
+  </div>
+
+  <hr style="margin-top:16px; border-color:#333;">
+
+  <div style="margin-top:8px;">
+    <h3 style="margin:0; font-size:14px;">Widgets settings</h3>
+    <div style="margin-top:8px;">
+      <label class="small">Pomodoro defaults</label>
+      <div style="display:flex; gap:8px;">
+        <input type="number" id="pomDefaultFocus" value="25" style="width:72px; padding:6px;">
+        <input type="number" id="pomDefaultBreak" value="5" style="width:72px; padding:6px;">
+      </div>
+    </div>
+  </div>
+
+  <div style="margin-top:12px;">
+    <h3 style="margin:0; font-size:14px;">Advanced</h3>
+    <div style="margin-top:8px;">
+      <button id="clearStorageBtn" style="padding:8px 10px;">Clear index4 Storage</button>
+      <div class="tiny muted" style="margin-top:8px;">Clearing will reset everything.</div>
+    </div>
+  </div>
+</div>
+
+<!-- BubbleMenu (duplicate placed to top of DOM for absolute positioning) -->
+<div id="bubbleMenu" style="display:none; position:absolute; background:#333; border:1px solid #555; border-radius:6px; font-size:12px; padding:8px; z-index:4000;">
+  <div class="menuItem" data-action="copy">📋 Copy</div>
+  <div class="menuItem" data-action="reply">💬 Reply</div>
+  <div class="menuItem" data-action="edit">✏️ Edit Message</div>
+  <div class="menuItem" data-action="switch">👤 Switch Character</div>
+  <div class="menuItem" data-action="react">😊 React</div>
+  <div class="menuItem" data-action="delete">🗑️ Delete Message</div>
+</div>
+
+<!-- Place for JS: Part 2 will provide all script logic. -->
+<script>
+  /* ===========================
+   PART 2: index4 JavaScript
+   Paste into your index4.html <script> tag
+   =========================== */
+(function () {
+  // ===== STORAGE KEYS =====
+  const KEYS = {
+    chat: "index4_chatData",
+    chars: "index4_characters",
+    settings: "index4_settings",
+    reminders: "index4_reminders",
+    todos: "index4_todos",
+    wheel: "index4_wheel",
+    pom: "index4_pom"
+  };
+
+  // ===== DOM nodes =====
+  const chatContainer = document.getElementById("chatContainer");
+  const nameInput = document.getElementById("nameInput");
+  const colorInput = document.getElementById("colorInput");
+  const messageInput = document.getElementById("messageInput");
+  const sendBtn = document.getElementById("sendBtn");
+  const clearBtn = document.getElementById("clearBtn");
+  const sideToggle = document.getElementById("sideToggle");
+  const characterCircles = document.getElementById("characterCircles");
+  const addCharacterBtn = document.getElementById("addCharacterBtn");
+  const deleteCharacterBtn = document.getElementById("deleteCharacterBtn");
+  const saveCharacterBtn = document.getElementById("saveCharacterBtn");
+  const avatarPicker = document.getElementById("avatarPicker");
+  const avatarFileInput = document.getElementById("avatarFileInput");
+  const uploadAvatarBtn = document.getElementById("uploadAvatarBtn");
+  const iconInput = document.getElementById("iconInput");
+  const bubbleMenu = document.querySelectorAll("#bubbleMenu")[0]; // top bubble menu instance
+  const switchCharacterModal = document.getElementById("switchCharacterModal");
+  const switchCharacterList = document.getElementById("switchCharacterList");
+  const openSwitchModalBtn = document.getElementById("openSwitchModalBtn");
+  const autoSelectCheckbox = document.getElementById("autoSelectCheckbox");
+  const replyBtn = document.getElementById("replyBtn");
+  const editBtn = document.getElementById("editBtn");
+  const replyAnchor = { index: null }; // to store reply target
+  const editAnchor = { index: null };
+
+  // Settings + UI elements
+  const settingsToggle = document.getElementById("settingsToggle");
+  const settingsPanel = document.getElementById("settingsPanel");
+  const settingsCloseBtn = document.getElementById("settingsCloseBtn");
+  const fontSelector = document.getElementById("fontSelector");
+  const fontSelectorHeader = document.getElementById("fontSelectorHeader");
+  const bgColorInput = document.getElementById("bgColorInput");
+  const bubbleStyleSelector = document.getElementById("bubbleStyleSelector");
+  const bubbleStyleSelectorPanel = document.getElementById("bubbleStyleSelectorPanel");
+  const showReactions = document.getElementById("showReactions");
+  const showReactionsPanel = document.getElementById("showReactionsPanel");
+  const clearStorageBtn = document.getElementById("clearStorageBtn");
+  const resetAllBtn = document.getElementById("resetAllBtn");
+
+  // Widgets DOM
+  // Pomodoro
+  const pomTimerDisplay = document.getElementById("pomTimerDisplay");
+  const pomFocusInput = document.getElementById("pomFocusInput");
+  const pomBreakInput = document.getElementById("pomBreakInput");
+  const pomStartBtn = document.getElementById("pomStartBtn");
+  const pomPauseBtn = document.getElementById("pomPauseBtn");
+  const pomResetBtn = document.getElementById("pomResetBtn");
+  const pomSkipBtn = document.getElementById("pomSkipBtn");
+  // Wheel
+  const wheelCanvas = document.getElementById("wheelCanvas");
+  const addWheelItemBtn = document.getElementById("addWheelItemBtn");
+  const newWheelItem = document.getElementById("newWheelItem");
+  const spinWheelBtn = document.getElementById("spinWheelBtn");
+  const wheelListDiv = document.getElementById("wheelList");
+  // Reminders
+  const remindersFloating = document.getElementById("remindersFloating");
+  const reminderListDiv = document.getElementById("reminderList");
+  const reminderText = document.getElementById("reminderText");
+  const reminderTime = document.getElementById("reminderTime");
+  const reminderRepeat = document.getElementById("reminderRepeat");
+  const addReminderBtn = document.getElementById("addReminderBtn");
+  const toggleReminders = document.getElementById("toggleReminders");
+  // ToDo
+  const todoFloating = document.getElementById("todoFloating");
+  const todoListDiv = document.getElementById("todoList");
+  const newTodoInput = document.getElementById("newTodoInput");
+  const addTodoBtn = document.getElementById("addTodoBtn");
+  const toggleTodo = document.getElementById("toggleTodo");
+  // Other
+  const clearBtnTop = document.getElementById("clearBtn");
+  const switchCharacterButton = document.getElementById("openSwitchModalBtn");
+
+  // ===== App data =====
+  let chatData = load(KEYS.chat) || [];
+  let characters = load(KEYS.chars) || [];
+  let settings = load(KEYS.settings) || {
+    bgColor: "#1e1e1e",
+    font: "Press Start 2P",
+    showReactions: true,
+    lastCharacterId: null,
+    bubbleStyle: "rounded"
+  };
+  let reminders = load(KEYS.reminders) || [];
+  let todos = load(KEYS.todos) || [];
+  let wheel = load(KEYS.wheel) || { items: ["Yes", "No", "Maybe"], angle: 0, spinning: false };
+  let pom = load(KEYS.pom) || { focusMin: 25, breakMin: 5, running: false, mode: "focus", remaining: null, lastTick: null, paused: false };
+
+  // The currently selected character index
+  let currentCharacterIndex = -1;
+  // For hold detection on bubble
+  let holdTimer = null;
+
+  // Reaction options
+  const REACTIONS = ["❤️", "😊", "😢", "😡", "👊", "😟", "👍"];
+
+  // Audio (simple beep)
+  const audioBeep = new Audio();
+  audioBeep.src = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQAAAAA="; // tiny silent beep fallback
+  // We'll optionally create audio via oscillator for notifications
+  function playBeep() {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.type = "sine";
+      o.frequency.value = 880;
+      g.gain.value = 0.02;
+      o.connect(g); g.connect(ctx.destination);
+      o.start();
+      setTimeout(() => { o.stop(); ctx.close(); }, 180);
+    } catch (e) {
+      try { audioBeep.play(); } catch (e2) {}
+    }
+  }
+
+  // ===== Utilities =====
+  function save(key, value) {
+    try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) {}
+  }
+  function load(key) {
+    try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : null; } catch (e) { return null; }
+  }
+  function saveAll() {
+    save(KEYS.chat, chatData);
+    save(KEYS.chars, characters);
+    save(KEYS.settings, settings);
+    save(KEYS.reminders, reminders);
+    save(KEYS.todos, todos);
+    save(KEYS.wheel, wheel);
+    save(KEYS.pom, pom);
+  }
+
+  function uid() { return Date.now() + Math.random().toString(36).slice(2,8); }
+
+  // Contrast helper
+  function adjustTextColor(bgColor) {
+    if (!bgColor) return "#000";
+    const hex = bgColor.replace("#", "");
+    const r = parseInt(hex.substr(0, 2), 16);
+    const g = parseInt(hex.substr(2, 2), 16);
+    const b = parseInt(hex.substr(4, 2), 16);
+    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    return luminance > 0.5 ? "#000" : "#fff";
+  }
+
+  // current time short
+  function nowTime() { return new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }); }
+
+
+  function setupTouchHandlers() {
+  document.querySelectorAll('.bubble').forEach(bubble => {
+    bubble.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      const index = parseInt(bubble.closest('.chat-message-container').dataset.index, 10);
+      const rect = bubble.getBoundingClientRect();
+      openBubbleMenu(rect.right - 50, rect.top, index);
+    }, { passive: false });
+  });
+}
+
+
+  // ===== Rendering =====
+  function renderChat() {
+    chatContainer.innerHTML = "";
+    let lastDate = null;
+    chatData.forEach((msg, index) => {
+      // date separator
+      const msgDate = new Date(msg.timestamp || Date.now());
+      const msgDateStr = msgDate.toDateString();
+      if (msgDateStr !== lastDate) {
+        const dateDiv = document.createElement("div");
+        dateDiv.style.textAlign = "center";
+        dateDiv.style.fontSize = "11px";
+        dateDiv.style.color = "#bbb";
+        dateDiv.style.margin = "8px 0";
+        dateDiv.textContent = msgDate.toLocaleDateString();
+        chatContainer.appendChild(dateDiv);
+        lastDate = msgDateStr;
+        setupTouchHandlers();
+      }
+
+      const container = document.createElement("div");
+      container.className = "chat-message-container " + (msg.side || "right");
+      container.dataset.index = index;
+
+      // header
+      const header = document.createElement("div");
+      header.className = "msg-header";
+      const avatar = document.createElement("div");
+      avatar.className = "avatar-header";
+      if (msg.avatarImage) {
+        const im = document.createElement("img");
+        im.src = msg.avatarImage; avatar.appendChild(im);
+      } else {
+        avatar.textContent = msg.avatarEmoji || "🙂";
+      }
+      const iconSpan = document.createElement("span");
+      iconSpan.className = "icon-header";
+      iconSpan.textContent = msg.icon || "";
+      const nameSpan = document.createElement("span");
+      nameSpan.className = "name-header";
+      nameSpan.textContent = msg.name || "Anon";
+      const timeSpan = document.createElement("span");
+      timeSpan.className = "time-header";
+      timeSpan.textContent = msg.time || nowTime();
+
+      header.appendChild(avatar);
+      if (msg.icon) header.appendChild(iconSpan);
+      header.appendChild(nameSpan);
+      header.appendChild(timeSpan);
+
+      // bubble
+      const bubble = document.createElement("div");
+      bubble.className = "bubble " + (msg.side || "right");
+      bubble.style.backgroundColor = msg.color || "#ffffff";
+      bubble.style.color = adjustTextColor(msg.color || "#ffffff");
+      bubble.textContent = msg.message || "";
+
+      // reactions row (if enabled)
+      if (settings.showReactions && Array.isArray(msg.reactions) && msg.reactions.length) {
+        const rrow = document.createElement("div");
+        rrow.className = "reaction-row";
+        msg.reactions.forEach(r => {
+          const span = document.createElement("span");
+          span.textContent = r;
+          rrow.appendChild(span);
+        });
+        container.appendChild(rrow);
+      }
+
+      // attach bubble hold/tap events
+      bubble.addEventListener("mousedown", (e) => {
+        e.preventDefault();
+        holdTimer = setTimeout(() => {
+          openBubbleMenu(e.pageX, e.pageY, index);
+        }, 420);
+      });
+      bubble.addEventListener("mouseup", (e) => { clearTimeout(holdTimer); });
+      bubble.addEventListener("mouseleave", () => { clearTimeout(holdTimer); });
+
+      // double click flips side for all messages of this char (like index3)
+      bubble.addEventListener("dblclick", () => {
+        const charId = msg.characterId;
+        if (!charId) return;
+        // flip side for all messages that belong to this character
+        chatData.forEach(m => {
+          if (m.characterId === charId) {
+            m.side = (m.side === "left") ? "right" : "left";
+          }
+        });
+        // also flip in characters array
+        const ch = characters.find(c => c.id === charId);
+        if (ch) ch.side = (ch.side === "left") ? "right" : "left";
+        saveAll();
+        renderCharacters();
+        renderChat();
+      });
+
+      container.appendChild(header);
+      container.appendChild(bubble);
+      chatContainer.appendChild(container);
+    });
+
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+  }
+
+  function renderCharacters() {
+    characterCircles.innerHTML = "";
+  characters.forEach((c, i) => {
+    const div = document.createElement("div");
+    div.className = "char-circle" + (i === currentCharacterIndex ? " selected" : "");
+    div.style.background = c.color || "#ddd";
+    const ava = document.createElement("div");
+    ava.className = "char-avatar";
+    ava.style.width = "100%"; /* Ensure full width */
+    ava.style.height = "100%"; /* Ensure full height */
+    ava.style.display = "flex"; /* Center the image */
+    ava.style.alignItems = "center";
+    ava.style.justifyContent = "center";
+    ava.style.overflow = "hidden"; /* Hide overflow */
+    if (c.avatarImage) {
+      const im = document.createElement("img");
+      im.src = c.avatarImage;
+      im.style.width = "100%"; /* Fill the circle */
+      im.style.height = "100%";
+      im.style.objectFit = "cover"; /* Maintain aspect ratio */
+      ava.appendChild(im);
+    } else {
+      ava.textContent = c.avatarEmoji || "🙂";
+    }
+    div.appendChild(ava);
+    div.title = c.name || "Unnamed";
+    div.addEventListener("click", () => {
+      currentCharacterIndex = i;
+      settings.lastCharacterId = c.id;
+      updateCharacterInputs();
+      renderCharacters();
+    });
+    characterCircles.appendChild(div);
+  });
+}
+
+  function updateCharacterInputs() {
+    if (currentCharacterIndex < 0 || currentCharacterIndex >= characters.length) {
+      nameInput.value = "";
+      colorInput.value = "#ffffff";
+      iconInput.value = "";
+      selectEmojiInPicker(null);
+      return;
+    }
+    const c = characters[currentCharacterIndex];
+    nameInput.value = c.name;
+    colorInput.value = c.color || "#ffffff";
+    iconInput.value = c.icon || "";
+    selectEmojiInPicker(c.avatarEmoji);
+    // set side toggle appearance
+    sideToggle.textContent = (c.side === "left") ? "⬅️" : "➡️";
+  }
+
+  // emoji picker selection helper
+  function selectEmojiInPicker(emoji) {
+    document.querySelectorAll(".emojiOption").forEach(sp => sp.classList.toggle("selected", sp.textContent === emoji));
+  }
+
+  // apply character changes to previous messages for that character
+  function applyCharacterChangesToMessages(char) {
+    if (!char || !char.id) return;
+    chatData.forEach(m => {
+      if (m.characterId === char.id) {
+        m.name = char.name;
+        m.color = char.color;
+        m.avatarEmoji = char.avatarEmoji;
+        m.avatarImage = char.avatarImage;
+        m.side = char.side;
+        m.icon = char.icon;
+      }
+    });
+  }
+
+  // ===== Message send / edit / delete / reply etc. =====
+  function sendMessage() {
+    const txt = messageInput.value.trim();
+    if (!txt) return alert("Please enter a message.");
+    if (currentCharacterIndex === -1) return alert("Please add and select a character first.");
+    const ch = characters[currentCharacterIndex];
+    // ensure char fields saved
+    ch.name = nameInput.value.trim() || ch.name || "Anon";
+    ch.color = colorInput.value || ch.color || "#ffffff";
+    ch.icon = iconInput.value || ch.icon || "";
+    ch.avatarEmoji = ch.avatarEmoji || "🙂";
+    ch.side = ch.side || "right";
+    // create msg
+    const msg = {
+      id: uid(),
+      name: ch.name,
+      message: txt,
+      color: ch.color,
+      side: ch.side || "right",
+      avatarEmoji: ch.avatarEmoji || null,
+      avatarImage: ch.avatarImage || null,
+      icon: ch.icon || null,
+      time: nowTime(),
+      timestamp: Date.now(),
+      characterId: ch.id,
+      reactions: []
+    };
+    // if replying
+    if (replyAnchor.index !== null) {
+      msg.replyTo = replyAnchor.index;
+      replyAnchor.index = null;
+    }
+    chatData.push(msg);
+    saveAll();
+    renderChat();
+    renderCharacters();
+    messageInput.value = "";
+  }
+
+  function deleteMessage(index) {
+    if (index == null || !chatData[index]) return;
+    if (!confirm("Delete message?")) return;
+    // mark deleted (so we can still show placeholder)
+    chatData[index].deleted = true;
+    chatData[index].deletedBy = characters[currentCharacterIndex]?.name || "Unknown";
+    saveAll();
+    renderChat();
+  }
+
+  function editMessage(index) {
+    if (index == null || !chatData[index]) return;
+    const newText = prompt("Edit message:", chatData[index].message || "");
+    if (newText !== null) {
+      chatData[index].message = newText.trim();
+      chatData[index].time = nowTime();
+      saveAll();
+      renderChat();
+    }
+  }
+
+  // switch message to another character (open modal)
+  function openSwitchCharacterModal(index) {
+    if (index == null || !chatData[index]) return;
+    switchCharacterModal.style.display = "flex";
+    switchCharacterList.innerHTML = "";
+    // show current current char avatar in top? Not necessary — list all characters
+    characters.forEach((char, i) => {
+      const btn = document.createElement("button");
+      btn.style.padding = "6px 8px";
+      btn.style.borderRadius = "6px";
+      btn.style.border = "none";
+      btn.style.background = char.color || "#555";
+      btn.style.color = adjustTextColor(char.color || "#555");
+      btn.style.cursor = "pointer";
+      btn.style.fontSize = "12px";
+      btn.innerText = `${char.avatarEmoji || ""} ${char.name}`;
+      btn.addEventListener("click", () => {
+        const msg = chatData[index];
+        if (!msg) return;
+        msg.name = char.name;
+        msg.color = char.color;
+        msg.avatarEmoji = char.avatarEmoji;
+        msg.avatarImage = char.avatarImage;
+        msg.side = char.side || "right";
+        msg.characterId = char.id;
+        saveAll();
+        renderChat();
+        switchCharacterModal.style.display = "none";
+      });
+      switchCharacterList.appendChild(btn);
+    });
+  }
+
+  // bubble menu functions (copy/reply/edit/switch/react/delete)
+  function openBubbleMenu(x, y, index) {
+    const menu = bubbleMenu;
+    menu.style.display = "block";
+    menu.style.left = x + "px";
+    menu.style.top = y + "px";
+    menu.dataset.index = index;
+  }
+
+  // hide bubble menu when clicking elsewhere
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest("#bubbleMenu")) {
+      bubbleMenu.style.display = "none";
+    }
+  });
+
+  // bubble menu event handling
+  bubbleMenu.addEventListener("click", (e) => {
+    const it = e.target.closest(".menuItem");
+    if (!it) return;
+    const action = it.dataset.action;
+    const idx = parseInt(bubbleMenu.dataset.index, 10);
+    const msg = chatData[idx];
+    bubbleMenu.style.display = "none";
+    if (!msg) return;
+
+    if (action === "copy") {
+      navigator.clipboard.writeText(msg.message || "");
+      alert("Copied message!");
+    } else if (action === "reply") {
+      messageInput.value = `@${msg.name} `;
+      messageInput.focus();
+      replyAnchor.index = idx;
+    } else if (action === "edit") {
+      editMessage(idx);
+    } else if (action === "switch") {
+      openSwitchCharacterModal(idx);
+    } else if (action === "react") {
+      openReactionPickerAt(idx);
+    } else if (action === "delete") {
+      deleteMessage(idx);
+    }
+  });
+
+  // Reaction picker overlay near message: simple prompt style
+  function openReactionPickerAt(index) {
+    // create a temporary small popover
+    const existing = document.getElementById("reactionPopover");
+    if (existing) existing.remove();
+    const pop = document.createElement("div");
+    pop.id = "reactionPopover";
+    pop.style.position = "absolute";
+    pop.style.zIndex = 6000;
+    pop.style.background = "#222";
+    pop.style.border = "1px solid #555";
+    pop.style.padding = "6px";
+    pop.style.borderRadius = "8px";
+    REACTIONS.forEach(r => {
+      const b = document.createElement("button");
+      b.style.margin = "4px";
+      b.style.fontSize = "18px";
+      b.textContent = r;
+      b.addEventListener("click", () => {
+        toggleReaction(index, r);
+        pop.remove();
+      });
+      pop.appendChild(b);
+    });
+
+    // attach near the bubble for index
+    // find bubble element
+    const bubbleEl = document.querySelector(`.chat-message-container[data-index="${index}"] .bubble`);
+    if (!bubbleEl) {
+      // fallback center
+      pop.style.left = (window.innerWidth / 2 - 80) + "px";
+      pop.style.top = (window.innerHeight / 2 - 40) + "px";
+      document.body.appendChild(pop);
+      return;
+    }
+    const rect = bubbleEl.getBoundingClientRect();
+    pop.style.left = (rect.right + 8 + window.scrollX) + "px";
+    pop.style.top = (rect.top + window.scrollY) + "px";
+    document.body.appendChild(pop);
+  }
+
+  function toggleReaction(index, reaction) {
+    if (!chatData[index]) return;
+    chatData[index].reactions = chatData[index].reactions || [];
+    const idx = chatData[index].reactions.indexOf(reaction);
+    if (idx === -1) chatData[index].reactions.push(reaction);
+    else chatData[index].reactions.splice(idx, 1);
+    saveAll();
+    renderChat();
+  }
+
+  // ===== Character management =====
+  addCharacterBtn.addEventListener("click", () => {
+    const newC = {
+      id: uid(),
+      name: "Anon",
+      color: "#ffffff",
+      avatarEmoji: "🙂",
+      avatarImage: null,
+      side: "right",
+      icon: ""
+    };
+    characters.push(newC);
+    currentCharacterIndex = characters.length - 1;
+    settings.lastCharacterId = newC.id;
+    saveAll();
+    renderCharacters();
+    updateCharacterInputs();
+  });
+
+  deleteCharacterBtn.addEventListener("click", () => {
+    if (currentCharacterIndex === -1) return alert("No character selected.");
+    if (!confirm(`Delete character "${characters[currentCharacterIndex].name}"?`)) return;
+    const removed = characters.splice(currentCharacterIndex, 1)[0];
+    // move chat messages from removed char to null/anonymous (or you could reassign)
+    chatData.forEach(m => {
+      if (m.characterId === removed.id) {
+        m.characterId = null;
+        m.name = "Anon";
+      }
+    });
+    currentCharacterIndex = characters.length ? 0 : -1;
+    settings.lastCharacterId = characters[0]?.id || null;
+    saveAll();
+    renderCharacters();
+    renderChat();
+  });
+
+  saveCharacterBtn.addEventListener("click", () => {
+    if (currentCharacterIndex === -1) return alert("No character selected.");
+    const c = characters[currentCharacterIndex];
+    c.name = nameInput.value.trim() || c.name;
+    c.color = colorInput.value || c.color;
+    c.icon = iconInput.value || c.icon;
+    // avatarImage is updated by file input handler
+    // ensure avatarEmoji is set if not image
+    if (!c.avatarImage && !c.avatarEmoji) c.avatarEmoji = "🙂";
+    applyCharacterChangesToMessages(c);
+    saveAll();
+    renderCharacters();
+    renderChat();
+    alert("Character saved.");
+  });
+
+  // avatar picker selection
+  avatarPicker.addEventListener("click", (e) => {
+    if (e.target.classList.contains("emojiOption")) {
+      const emoji = e.target.textContent;
+      if (currentCharacterIndex === -1) {
+        alert("Select a character first.");
+        return;
+      }
+      characters[currentCharacterIndex].avatarEmoji = emoji;
+      characters[currentCharacterIndex].avatarImage = null;
+      saveAll();
+      renderCharacters();
+      renderChat();
+      selectEmojiInPicker(emoji);
+    }
+  });
+
+  uploadAvatarBtn && uploadAvatarBtn.addEventListener("click", () => avatarFileInput.click());
+  avatarFileInput && avatarFileInput.addEventListener("change", (ev) => {
+    const f = ev.target.files[0];
+    if (!f) return;
+    if (!f.type.startsWith("image/")) return alert("Select an image file.");
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (currentCharacterIndex === -1) return alert("Select a character first.");
+      characters[currentCharacterIndex].avatarImage = reader.result;
+      characters[currentCharacterIndex].avatarEmoji = null;
+      saveAll();
+      renderCharacters();
+      renderChat();
+    };
+    reader.readAsDataURL(f);
+  });
+
+  // name/color inputs propagate live
+  nameInput.addEventListener("input", () => {
+    if (currentCharacterIndex === -1) return;
+    characters[currentCharacterIndex].name = nameInput.value.trim() || characters[currentCharacterIndex].name;
+    applyCharacterChangesToMessages(characters[currentCharacterIndex]);
+    saveAll();
+    renderChat();
+  });
+  colorInput.addEventListener("input", () => {
+    if (currentCharacterIndex === -1) return;
+    characters[currentCharacterIndex].color = colorInput.value;
+    applyCharacterChangesToMessages(characters[currentCharacterIndex]);
+    saveAll();
+    renderChat();
+    renderCharacters();
+  });
+  iconInput.addEventListener("input", () => {
+    if (currentCharacterIndex === -1) return;
+    characters[currentCharacterIndex].icon = iconInput.value;
+    applyCharacterChangesToMessages(characters[currentCharacterIndex]);
+    saveAll();
+    renderChat();
+    renderCharacters();
+  });
+
+  // side toggle
+  sideToggle.addEventListener("click", () => {
+    if (currentCharacterIndex === -1) return;
+    const c = characters[currentCharacterIndex];
+    c.side = (c.side === "left") ? "right" : "left";
+    applyCharacterChangesToMessages(c);
+    saveAll();
+    renderCharacters();
+    renderChat();
+  });
+
+  // keyboard shortcuts for shift arrows to toggle side (like index3)
+  messageInput.addEventListener("keydown", (e) => {
+    if (e.shiftKey && e.key === "ArrowLeft") {
+      e.preventDefault();
+      if (currentCharacterIndex >= 0) {
+        characters[currentCharacterIndex].side = "left";
+        applyCharacterChangesToMessages(characters[currentCharacterIndex]);
+        saveAll();
+        renderChat();
+        renderCharacters();
+      }
+      return;
+    }
+    if (e.shiftKey && e.key === "ArrowRight") {
+      e.preventDefault();
+      if (currentCharacterIndex >= 0) {
+        characters[currentCharacterIndex].side = "right";
+        applyCharacterChangesToMessages(characters[currentCharacterIndex]);
+        saveAll();
+        renderChat();
+        renderCharacters();
+      }
+      return;
+    }
+    // Enter sends (without shift)
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  });
+
+  // send button
+  sendBtn.addEventListener("click", sendMessage);
+
+  // clear chat
+  clearBtnTop.addEventListener("click", () => {
+    if (!confirm("Clear all chat messages?")) return;
+    chatData = [];
+    saveAll();
+    renderChat();
+  });
+
+  // open switch modal (for manual switching UI)
+  switchCharacterButton.addEventListener("click", () => {
+    // open modal and show characters
+    openSwitchCharacterModal(-1); // -1 meaning just open list (we won't reassign a message)
+  });
+
+  // clicking on a character in modal will just select it (if index -1), else reassign message (handled earlier)
+  // But the function already handles both depending on provided index.
+
+  // ===== Settings and appearance =====
+  settingsToggle.addEventListener("click", () => {
+    settingsPanel.classList.add("open");
+  });
+  settingsCloseBtn.addEventListener("click", () => {
+    settingsPanel.classList.remove("open");
+  });
+
+  // load fonts into selector (some common picks)
+  const FONT_LIST = [
+    "Press Start 2P", "Roboto", "Inter", "Montserrat", "Poppins",
+    "Open Sans", "Lato", "Nunito", "Rubik", "Merriweather", "Source Sans Pro",
+    "Indie Flower", "VT323"
+  ];
+  function populateFontSelectors() {
+    FONT_LIST.forEach(f => {
+      const o = document.createElement("option");
+      o.value = f; o.textContent = f;
+      fontSelector.appendChild(o);
+      const oh = document.createElement("option");
+      oh.value = f; oh.textContent = f;
+      fontSelectorHeader.appendChild(oh);
+    });
+    // preselect current
+    fontSelector.value = settings.font || "Press Start 2P";
+    fontSelectorHeader.value = settings.font || "Press Start 2P";
+  }
+  populateFontSelectors();
+
+  function applyFont(font) {
+    // Add Google fonts link dynamically (basic)
+    const nameForURL = font.replace(/ /g, "+");
+    const existing = document.getElementById("dynamicFont");
+    if (existing) existing.remove();
+    const link = document.createElement("link");
+    link.id = "dynamicFont";
+    link.rel = "stylesheet";
+    link.href = `https://fonts.googleapis.com/css2?family=${nameForURL}&display=swap`;
+    document.head.appendChild(link);
+    document.body.style.fontFamily = `'${font}', cursive`;
+  }
+  applyFont(settings.font);
+
+  fontSelector.addEventListener("change", () => {
+    settings.font = fontSelector.value;
+    fontSelectorHeader.value = fontSelector.value;
+    applyFont(settings.font);
+    saveAll();
+  });
+  fontSelectorHeader.addEventListener("change", () => {
+    settings.font = fontSelectorHeader.value;
+    fontSelector.value = settings.font;
+    applyFont(settings.font);
+    saveAll();
+  });
+
+  // background color
+  bgColorInput.value = settings.bgColor || "#1e1e1e";
+  bgColorInput.addEventListener("input", () => {
+    document.documentElement.style.setProperty("--bg", bgColorInput.value);
+    document.body.style.background = bgColorInput.value;
+    settings.bgColor = bgColorInput.value;
+    saveAll();
+  });
+
+  // bubble style control
+  bubbleStyleSelector.addEventListener("change", () => {
+    settings.bubbleStyle = bubbleStyleSelector.value;
+    bubbleStyleSelectorPanel.value = bubbleStyleSelector.value;
+    applyBubbleStyle();
+    saveAll();
+  });
+  bubbleStyleSelectorPanel.addEventListener("change", () => {
+    settings.bubbleStyle = bubbleStyleSelectorPanel.value;
+    bubbleStyleSelector.value = bubbleStyleSelectorPanel.value;
+    applyBubbleStyle();
+    saveAll();
+  });
+
+  function applyBubbleStyle() {
+    // For simplicity, we'll add a class to body (or set CSS variables).
+    document.body.dataset.bubbleStyle = settings.bubbleStyle;
+    // Could add more complex stylings here; for now it's a placeholder.
+  }
+  bubbleStyleSelector.value = settings.bubbleStyle;
+  bubbleStyleSelectorPanel.value = settings.bubbleStyle;
+  applyBubbleStyle();
+
+  // reactions toggle
+  showReactions.checked = settings.showReactions;
+  showReactionsPanel.checked = settings.showReactions;
+  showReactions.addEventListener("change", () => {
+    settings.showReactions = showReactions.checked;
+    showReactionsPanel.checked = showReactions.checked;
+    saveAll();
+    renderChat();
+  });
+  showReactionsPanel.addEventListener("change", () => {
+    settings.showReactions = showReactionsPanel.checked;
+    showReactions.checked = showReactionsPanel.checked;
+    saveAll();
+    renderChat();
+  });
+
+  // clear storage
+  clearStorageBtn.addEventListener("click", () => {
+    if (!confirm("Clear all index4 data? This will reset everything.")) return;
+    localStorage.removeItem(KEYS.chat);
+    localStorage.removeItem(KEYS.chars);
+    localStorage.removeItem(KEYS.settings);
+    localStorage.removeItem(KEYS.reminders);
+    localStorage.removeItem(KEYS.todos);
+    localStorage.removeItem(KEYS.wheel);
+    localStorage.removeItem(KEYS.pom);
+    location.reload();
+  });
+
+  resetAllBtn.addEventListener("click", () => {
+    if (!confirm("Reset index4 data?")) return;
+    localStorage.clear();
+    location.reload();
+  });
+
+  // ===== Reminders widget =====
+  function renderReminders() {
+    reminderListDiv.innerHTML = "";
+    reminders.forEach((r, i) => {
+      const row = document.createElement("div");
+      row.style.display = "flex";
+      row.style.alignItems = "center";
+      row.style.justifyContent = "space-between";
+      row.style.marginBottom = "6px";
+      const left = document.createElement("div");
+      left.innerHTML = `<div style="font-size:12px">${r.text}</div><div class="tiny muted">${r.time}${r.repeat ? " • daily" : ""}</div>`;
+      const right = document.createElement("div");
+      const del = document.createElement("button");
+      del.textContent = "Delete";
+      del.style.fontSize = "11px";
+      del.addEventListener("click", () => {
+        reminders.splice(i, 1);
+        saveAll();
+        renderReminders();
+      });
+      right.appendChild(del);
+      row.appendChild(left); row.appendChild(right);
+      reminderListDiv.appendChild(row);
+    });
+  }
+
+  addReminderBtn.addEventListener("click", () => {
+    const t = reminderText.value.trim();
+    const timeVal = reminderTime.value;
+    const rep = reminderRepeat.checked;
+    if (!t || !timeVal) return alert("Add reminder text and time.");
+    reminders.push({ id: uid(), text: t, time: timeVal, repeat: !!rep, firedToday: false });
+    reminderText.value = ""; reminderTime.value = ""; reminderRepeat.checked = false;
+    saveAll();
+    renderReminders();
+  });
+
+  toggleReminders.addEventListener("click", () => {
+    remindersFloating.style.display = remindersFloating.style.display === "none" ? "block" : "none";
+  });
+
+  function checkRemindersTick() {
+    const now = new Date();
+    const hhmm = now.toTimeString().slice(0,5);
+    reminders.forEach(r => {
+      if (r.time === hhmm) {
+        // if repeat daily, allow every day; if single-shot, check firedToday flag
+        if (r.repeat || !r.firedDate || r.firedDate !== new Date().toDateString()) {
+          // notify
+          triggerReminderNotification(r);
+          r.firedDate = new Date().toDateString();
+        }
+      }
+    });
+    saveAll();
+  }
+
+  function triggerReminderNotification(rem) {
+    playBeep();
+    // browser notification
+    if (("Notification" in window) && Notification.permission === "granted") {
+      const n = new Notification("Reminder", { body: rem.text });
+      n.onclick = () => window.focus();
+    } else if (("Notification" in window) && Notification.permission !== "denied") {
+      Notification.requestPermission().then(p => {
+        if (p === "granted") {
+          new Notification("Reminder", { body: rem.text });
+        }
+      });
+    }
+    // small popup in page
+    const alertDiv = document.createElement("div");
+    alertDiv.textContent = `🔔 ${rem.text}`;
+    alertDiv.style.position = "fixed";
+    alertDiv.style.right = "20px";
+    alertDiv.style.bottom = "100px";
+    alertDiv.style.background = "#222";
+    alertDiv.style.padding = "10px";
+    alertDiv.style.border = "1px solid #444";
+    alertDiv.style.borderRadius = "8px";
+    alertDiv.style.zIndex = 9999;
+    document.body.appendChild(alertDiv);
+    setTimeout(() => alertDiv.remove(), 5000);
+  }
+
+  // check every 10s for demonstration (every 60s is OK too)
+  setInterval(checkRemindersTick, 10000);
+  renderReminders();
+
+  // ===== To-Do widget =====
+  function renderTodos() {
+    todoListDiv.innerHTML = "";
+    todos.forEach((t,i) => {
+      const row = document.createElement("div");
+      row.style.display = "flex";
+      row.style.alignItems = "center";
+      row.style.justifyContent = "space-between";
+      row.style.marginBottom = "6px";
+      const left = document.createElement("div");
+      left.style.display = "flex";
+      left.style.alignItems = "center";
+      const cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.checked = !!t.done;
+      cb.addEventListener("change", () => { t.done = cb.checked; saveAll(); renderTodos(); });
+      const span = document.createElement("span");
+      span.textContent = t.text;
+      span.style.marginLeft = "8px";
+      if (t.done) span.style.textDecoration = "line-through";
+      left.appendChild(cb); left.appendChild(span);
+      const del = document.createElement("button");
+      del.textContent = "Del"; del.style.fontSize = "11px";
+      del.addEventListener("click", () => { todos.splice(i,1); saveAll(); renderTodos(); });
+      row.appendChild(left); row.appendChild(del);
+      todoListDiv.appendChild(row);
+    });
+  }
+  addTodoBtn.addEventListener("click", () => {
+    const t = newTodoInput.value.trim();
+    if (!t) return;
+    todos.push({ id: uid(), text: t, done: false });
+    newTodoInput.value = "";
+    saveAll();
+    renderTodos();
+  });
+  toggleTodo.addEventListener("click", () => {
+    todoFloating.style.display = todoFloating.style.display === "none" ? "block" : "none";
+  });
+  renderTodos();
+
+  // ===== Pomodoro =====
+  let pomInterval = null;
+  function renderPom() {
+    const m = pom.remaining ?? (pom.mode === "focus" ? pom.focusMin * 60 : pom.breakMin * 60);
+    const mm = Math.floor(m/60).toString().padStart(2,"0");
+    const ss = (m%60).toString().padStart(2,"0");
+    pomTimerDisplay.textContent = `${mm}:${ss}`;
+  }
+  // initialize defaults
+  pom.focusMin = pom.focusMin || parseInt(pomFocusInput.value) || 25;
+  pom.breakMin = pom.breakMin || parseInt(pomBreakInput.value) || 5;
+  pom.mode = pom.mode || "focus"; // focus or break
+
+  function pomTick() {
+    if (!pom.running || pom.paused) return;
+    const now = Date.now();
+    // compute decrement by elapsed
+    const elapsedSec = Math.round((now - (pom.lastTick || now)) / 1000);
+    pom.lastTick = now;
+    if (pom.remaining == null) pom.remaining = (pom.mode === "focus" ? pom.focusMin * 60 : pom.breakMin * 60);
+    pom.remaining -= elapsedSec;
+    if (pom.remaining <= 0) {
+      // flip mode
+      playBeep();
+      triggerPomNotification();
+      if (pom.mode === "focus") pom.mode = "break";
+      else pom.mode = "focus";
+      pom.remaining = (pom.mode === "focus" ? pom.focusMin * 60 : pom.breakMin * 60);
+      // auto-pause? keep running — user choice. We'll keep running.
+    }
+    saveAll();
+    renderPom();
+  }
+
+  function triggerPomNotification() {
+    const text = pom.mode === "focus" ? "Focus session complete — break time!" : "Break ended — focus time!";
+    if (Notification && Notification.permission === "granted") new Notification("Pomodoro", { body: text });
+    else if (Notification && Notification.permission !== "denied") Notification.requestPermission().then(p => { if (p==='granted') new Notification("Pomodoro", { body: text }); });
+    // page popup
+    const el = document.createElement("div");
+    el.textContent = "⏱ " + text;
+    el.style.position = "fixed"; el.style.left = "20px"; el.style.bottom = "140px"; el.style.background = "#222";
+    el.style.padding = "10px"; el.style.border = "1px solid #444"; el.style.borderRadius = "8px"; el.style.zIndex = 9999;
+    document.body.appendChild(el);
+    setTimeout(()=>el.remove(), 4500);
+  }
+
+  pomStartBtn.addEventListener("click", () => {
+    pom.focusMin = parseInt(pomFocusInput.value) || 25;
+    pom.breakMin = parseInt(pomBreakInput.value) || 5;
+    pom.running = true; pom.paused = false; pom.lastTick = Date.now();
+    if (pom.remaining == null) pom.remaining = pom.mode === "focus" ? pom.focusMin * 60 : pom.breakMin * 60;
+    if (!pomInterval) pomInterval = setInterval(pomTick, 1000);
+    saveAll();
+  });
+  pomPauseBtn.addEventListener("click", () => {
+    pom.paused = !pom.paused;
+    if (!pomInterval && pom.running && !pom.paused) pomInterval = setInterval(pomTick, 1000);
+    saveAll();
+  });
+  pomResetBtn.addEventListener("click", () => {
+    if (!confirm("Reset Pomodoro?")) return;
+    pom.running = false; pom.paused = false; pom.mode = "focus"; pom.remaining = null;
+    clearInterval(pomInterval); pomInterval = null;
+    saveAll();
+    renderPom();
+  });
+  pomSkipBtn.addEventListener("click", () => {
+    // skip current session
+    if (pom.mode === "focus") pom.mode = "break"; else pom.mode = "focus";
+    pom.remaining = (pom.mode === "focus" ? pom.focusMin * 60 : pom.breakMin * 60);
+    saveAll();
+    renderPom();
+  });
+
+  // start interval if running persisted
+  if (pom.running && !pom.paused) {
+    pom.lastTick = Date.now();
+    pomInterval = setInterval(pomTick, 1000);
+  }
+  renderPom();
+
+  // ===== Spinning Wheel (canvas) =====
+  const ctx = wheelCanvas.getContext("2d");
+  const wheelState = {
+    angle: wheel.angle || 0,
+    angularVelocity: 0,
+    spinning: wheel.spinning || false,
+    lastTime: null
+  };
+
+  function saveWheelState() {
+    wheel.angle = wheelState.angle;
+    wheel.spinning = wheelState.spinning;
+    saveAll();
+  }
+
+  function renderWheel() {
+    const w = wheelCanvas.width = wheelCanvas.clientWidth * devicePixelRatio;
+    const h = wheelCanvas.height = wheelCanvas.clientHeight * devicePixelRatio;
+    ctx.clearRect(0,0,w,h);
+    const cx = w/2, cy = h/2, r = Math.min(w,h)/2 - 10*devicePixelRatio;
+    const items = wheel.items && wheel.items.length ? wheel.items : ["Empty"];
+    const n = items.length;
+    const slice = (Math.PI*2) / n;
+    // draw slices
+    for (let i=0;i<n;i++) {
+      const start = wheelState.angle + i*slice;
+      const end = start + slice;
+      ctx.beginPath();
+      ctx.moveTo(cx,cy);
+      ctx.arc(cx,cy,r,start,end);
+      ctx.closePath();
+      ctx.fillStyle = `hsl(${(i*360/n)},60%,50%)`;
+      ctx.fill();
+      // labels
+      ctx.save();
+      ctx.translate(cx,cy);
+      ctx.rotate(start + slice/2);
+      ctx.fillStyle = "#000";
+      ctx.font = `${14*devicePixelRatio}px sans-serif`;
+      ctx.textAlign = "right";
+      ctx.fillText(items[i], r - 10*devicePixelRatio, 0);
+      ctx.restore();
+    }
+    // draw center circle
+    ctx.beginPath();
+    ctx.arc(cx,cy, r*0.18, 0, Math.PI*2);
+    ctx.fillStyle = "#111"; ctx.fill();
+    // draw pointer
+    ctx.beginPath();
+    ctx.moveTo(cx + r + 6*devicePixelRatio, cy);
+    ctx.lineTo(cx + r + 26*devicePixelRatio, cy - 12*devicePixelRatio);
+    ctx.lineTo(cx + r + 26*devicePixelRatio, cy + 12*devicePixelRatio);
+    ctx.closePath();
+    ctx.fillStyle = "#fff";
+    ctx.fill();
+  }
+
+  function animateWheel(now) {
+    if (!wheelState.lastTime) wheelState.lastTime = now;
+    const dt = (now - wheelState.lastTime) / 1000;
+    wheelState.lastTime = now;
+    if (wheelState.spinning) {
+      // friction
+      wheelState.angularVelocity *= (1 - 0.5 * dt); // friction coefficient
+      wheelState.angle += wheelState.angularVelocity * dt;
+      // stop condition
+      if (Math.abs(wheelState.angularVelocity) < 0.05) {
+        wheelState.spinning = false;
+        // determine winner
+        const items = wheel.items.length ? wheel.items : ["Empty"];
+        const n = items.length;
+        const slice = (Math.PI*2)/n;
+        // normalize angle to 0..2pi
+        let a = wheelState.angle % (Math.PI*2);
+        if (a < 0) a += Math.PI*2;
+        const index = Math.floor(((Math.PI*2 - a + slice/2) % (Math.PI*2)) / slice) % n;
+        announceWheelWinner(items[index]);
+        saveWheelState();
+      } else {
+        saveWheelState();
+      }
+    }
+    renderWheel();
+    requestAnimationFrame(animateWheel);
+  }
+  requestAnimationFrame(animateWheel);
+
+  function spinWheel() {
+    if (!wheel.items || !wheel.items.length) return alert("Add items to wheel first.");
+    // set a random angular velocity and spin
+    const base = (Math.random() * 6) + 6; // rad/s
+    wheelState.angularVelocity = base;
+    wheelState.spinning = true;
+    wheelState.lastTime = null;
+    saveWheelState();
+  }
+
+  function announceWheelWinner(text) {
+    playBeep();
+    const el = document.createElement("div");
+    el.textContent = `🎉 Wheel: ${text}`;
+    el.style.position = "fixed";
+    el.style.right = "20px";
+    el.style.top = "120px";
+    el.style.background = "#222";
+    el.style.padding = "10px";
+    el.style.border = "1px solid #444";
+    el.style.borderRadius = "8px"; el.style.zIndex = 9999;
+    document.body.appendChild(el);
+    setTimeout(()=>el.remove(), 6000);
+  }
+
+  // wheel UI
+  function renderWheelList() {
+    wheelListDiv.innerHTML = "";
+    if (!wheel.items) wheel.items = [];
+    wheel.items.forEach((it, i) => {
+      const row = document.createElement("div");
+      row.style.display = "flex"; row.style.justifyContent = "space-between";
+      row.style.alignItems = "center"; row.style.marginBottom = "6px";
+      row.innerHTML = `<div style="font-size:12px">${it}</div>`;
+      const right = document.createElement("div");
+      const del = document.createElement("button"); del.textContent = "Del"; del.style.fontSize="11px";
+      del.addEventListener("click", ()=> { wheel.items.splice(i,1); saveAll(); renderWheelList(); });
+      right.appendChild(del);
+      row.appendChild(right);
+      wheelListDiv.appendChild(row);
+    });
+  }
+  addWheelItemBtn.addEventListener("click", () => {
+    const v = newWheelItem.value.trim();
+    if (!v) return;
+    if (!Array.isArray(wheel.items)) wheel.items = [];
+    wheel.items.push(v);
+    newWheelItem.value = "";
+    saveAll();
+    renderWheelList();
+  });
+  spinWheelBtn.addEventListener("click", () => spinWheel());
+  renderWheelList();
+
+  // Resize canvas to match container
+  function resizeWheelCanvas() {
+    // keep CSS size, but set actual pixel size
+    const rect = wheelCanvas.getBoundingClientRect();
+    wheelCanvas.width = rect.width * devicePixelRatio;
+    wheelCanvas.height = rect.height * devicePixelRatio;
+    renderWheel();
+  }
+  window.addEventListener("resize", resizeWheelCanvas);
+  resizeWheelCanvas();
+
+  // ===== Initial load and auto-selection behavior =====
+  function initDefaults() {
+    // fresh start if requested - we already used index4 keys so it's fresh
+    // If no characters, create default one
+    if (!characters || !characters.length) {
+      characters = [{
+        id: uid(), name: "Anon", color: "#ffffff", avatarEmoji: "🙂", avatarImage: null, side: "right", icon: ""
+      }];
+    }
+    // find last selected char
+    if (settings.lastCharacterId) {
+      const idx = characters.findIndex(c => c.id === settings.lastCharacterId);
+      currentCharacterIndex = idx >= 0 ? idx : 0;
+    } else {
+      currentCharacterIndex = 0;
+      settings.lastCharacterId = characters[0].id;
+    }
+
+    // apply saved UI settings
+    document.body.style.background = settings.bgColor || "#1e1e1e";
+    applyFont(settings.font || "Press Start 2P");
+    showReactions.checked = settings.showReactions;
+    showReactionsPanel.checked = settings.showReactions;
+    bubbleStyleSelector.value = settings.bubbleStyle || "rounded";
+    bubbleStyleSelectorPanel.value = settings.bubbleStyle || "rounded";
+    // pom defaults
+    pom.focusMin = pom.focusMin || parseInt(pomFocusInput.value) || 25;
+    pom.breakMin = pom.breakMin || parseInt(pomBreakInput.value) || 5;
+    // wheel angle
+    wheelState.angle = wheel.angle || 0;
+    wheelState.spinning = wheel.spinning || false;
+  }
+
+  initDefaults();
+  renderCharacters(); updateCharacterInputs();
+  renderChat();
+
+  // request Notification permission proactively (optional)
+  if ("Notification" in window && Notification.permission !== "granted" && Notification.permission !== "denied") {
+    Notification.requestPermission();
+  }
+
+  // helper to apply font on load
+  function applyFont(font) {
+    const nameForURL = font.replace(/ /g, "+");
+    const existing = document.getElementById("dynamicFont");
+    if (existing) existing.remove();
+    const link = document.createElement("link");
+    link.id = "dynamicFont";
+    link.rel = "stylesheet";
+    link.href = `https://fonts.googleapis.com/css2?family=${nameForURL}&display=swap`;
+    document.head.appendChild(link);
+    // apply fallback quickly; real font may load after
+    document.body.style.fontFamily = `'${font}', system-ui, sans-serif`;
+  }
+
+  // save at window unload
+  window.addEventListener("beforeunload", saveAll);
+
+  // expose switch modal open to global (used in some UI buttons)
+  window.openSwitchCharacterModal = function(index) { openSwitchCharacterModal(index); };
+
+  // click handlers for bubble menu duplicates (we placed it twice in HTML to ensure top-level absolute positioning)
+  document.querySelectorAll("#bubbleMenu").forEach(menu => {
+    menu.addEventListener("click", (e) => {
+      const it = e.target.closest(".menuItem");
+      if (!it) return;
+      const action = it.dataset.action;
+      const idx = parseInt(menu.dataset.index, 10);
+      const msg = chatData[idx];
+      menu.style.display = "none";
+      if (!msg) return;
+      if (action === "copy") { navigator.clipboard.writeText(msg.message || ""); alert("Copied"); }
+      else if (action === "reply") { messageInput.value = `@${msg.name} `; replyAnchor.index = idx; }
+      else if (action === "edit") { editMessage(idx); }
+      else if (action === "switch") { openSwitchCharacterModal(idx); }
+      else if (action === "react") { openReactionPickerAt(idx); }
+      else if (action === "delete") { deleteMessage(idx); }
+    });
+  });
+
+  // Make sure tap vs hold on character circles: quick click selects, hold will turn into something? For now click is enough.
+  // Keep consistent with index3 behavior.
+
+  /* ---------------------------
+     Finalize: ensure UI synced
+     --------------------------- */
+  function refreshUI() {
+    renderCharacters();
+    renderChat();
+    renderReminders();
+    renderTodos();
+    renderWheelList();
+    renderPom();
+  }
+
+  refreshUI();
+
+})();
+
+</script>
+
+</body>
+</html>
