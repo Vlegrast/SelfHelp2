@@ -1,1 +1,11 @@
-a test.
+a test. guh..
+
+[https://vlegrast.github.io/SelfHelp2/](TEST)
+
+
+added so far :
+1.pomo
+2.to do
+3.self talk
+4.modify apperance
+5.
