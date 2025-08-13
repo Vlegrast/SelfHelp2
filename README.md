@@ -1,6 +1,6 @@
 a test. guh..
 
-[https://vlegrast.github.io/SelfHelp2/](TEST)
+[https://vlegrast.github.io/SelfHelp2/](Try)
 
 
 added so far :
