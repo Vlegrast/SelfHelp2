@@ -1,7 +1,6 @@
 a test. guh..
 
-[https://vlegrast.github.io/SelfHelp2/](Try)
-
+(Try)[https://vlegrast.github.io/SelfHelp2/]
 
 added so far :
 1.pomo
